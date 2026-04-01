@@ -242,12 +242,9 @@ def install_skill(source: str) -> Tuple[bool, str, str]:
 
 
 def _extract_installed_name(stdout: str, source: str) -> str:
-    """Try to extract the installed skill name from npx output."""
-    for line in stdout.splitlines():
-        m = re.search(r"installed\s+['\"]?([a-z0-9_-]+)['\"]?", line, re.IGNORECASE)
-        if m:
-            return m.group(1)
-
+    """Extract the skill name from source (owner/repo@skill-name -> skill-name)."""
+    if "@" in source:
+        return source.rsplit("@", 1)[-1].strip()
     if "/" in source:
         return source.split("/")[-1].strip()
     return source.strip()

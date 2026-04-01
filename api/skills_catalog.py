@@ -2,6 +2,7 @@ from helpers.api import ApiHandler, Input, Output, Request, Response
 from usr.plugins._skills_marketplace.helpers.skills_cli import (
     search_marketplace,
     list_installed_skills,
+    read_lock,
 )
 
 
@@ -44,6 +45,14 @@ class SkillsCatalog(ApiHandler):
 
     def _list_installed(self):
         skills = list_installed_skills()
+        lock = read_lock()
+        lock_entries = lock.get("skills", {})
+        source_by_name: dict[str, str] = {}
+        for entry in lock_entries.values():
+            src = entry.get("source", "")
+            if "@" in src:
+                skill_name = src.rsplit("@", 1)[-1]
+                source_by_name[skill_name] = src
         return {
             "skills": [
                 {
@@ -53,6 +62,7 @@ class SkillsCatalog(ApiHandler):
                     "author": s.author,
                     "path": str(s.path),
                     "tags": s.tags,
+                    "source": source_by_name.get(s.name, ""),
                 }
                 for s in skills
             ],

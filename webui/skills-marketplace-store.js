@@ -101,8 +101,8 @@ const skillsMarketplaceStore = {
     }
   },
 
-  isInstalled(name) {
-    return this.installedSkills.some((s) => s.name === name);
+  isInstalled(source) {
+    return this.installedSkills.some((s) => s.source === source);
   },
 };
 

@@ -70,13 +70,13 @@
                                     </div>
                                     <div class="skill-actions">
                                         <button type="button" class="button confirm"
-                                            x-show="!$store.skillsMarketplace.isInstalled(result.name)"
+                                            x-show="!$store.skillsMarketplace.isInstalled(result.source)"
                                             @click="$store.skillsMarketplace.installSkill(result.source || result.name)"
                                             :disabled="$store.skillsMarketplace.installing === (result.source || result.name)">
                                             <span class="icon material-symbols-outlined">download</span>
                                             <span x-text="$store.skillsMarketplace.installing === (result.source || result.name) ? 'Installing...' : 'Install'"></span>
                                         </button>
-                                        <span x-show="$store.skillsMarketplace.isInstalled(result.name)" class="installed-badge">
+                                        <span x-show="$store.skillsMarketplace.isInstalled(result.source)" class="installed-badge">
                                             <span class="material-symbols-outlined">check_circle</span> Installed
                                         </span>
                                     </div>
