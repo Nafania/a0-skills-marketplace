@@ -28,7 +28,7 @@
                     this.statusMessage = '';
                     this.searchResults = [];
                     try {
-                        const resp = await fetch('/api/skills_catalog', {
+                        const resp = await fetch('/api/plugins/_skills_marketplace/skills_catalog', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ action: 'search', query: q }),
@@ -53,7 +53,7 @@
                     this.error = '';
                     this.statusMessage = '';
                     try {
-                        const resp = await fetch('/api/skill_install', {
+                        const resp = await fetch('/api/plugins/_skills_marketplace/skill_install', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ action: 'install', source }),
@@ -76,7 +76,7 @@
                     this.error = '';
                     this.statusMessage = '';
                     try {
-                        const resp = await fetch('/api/skill_install', {
+                        const resp = await fetch('/api/plugins/_skills_marketplace/skill_install', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ action: 'remove', skill_name: name }),
@@ -96,7 +96,7 @@
 
                 async loadInstalled() {
                     try {
-                        const resp = await fetch('/api/skills_catalog', {
+                        const resp = await fetch('/api/plugins/_skills_marketplace/skills_catalog', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ action: 'list_installed' }),
