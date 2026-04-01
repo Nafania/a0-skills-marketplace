@@ -144,30 +144,52 @@ def search_marketplace(query: str) -> Tuple[bool, List[Dict[str, str]], str]:
 
 
 def _parse_text_results(text: str) -> List[Dict[str, str]]:
-    """Fallback parser for non-JSON npx skills output."""
-    results = []
-    current: Dict[str, str] = {}
+    """Parse the `npx skills search` output format.
 
-    for line in text.splitlines():
-        line = line.strip()
-        if not line:
-            if current:
-                results.append(current)
-                current = {}
+    Expected format (after ANSI stripping):
+        firecrawl/cli@firecrawl 21.5K installs
+        └ https://skills.sh/firecrawl/cli/firecrawl
+    """
+    results = []
+    lines = text.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        i += 1
+
+        if not line or line.startswith("╔") or line.startswith("╚") or line.startswith("█"):
+            continue
+        if line.startswith("Install with"):
             continue
 
-        if ":" in line:
-            key, _, value = line.partition(":")
-            key = key.strip().lower()
-            value = value.strip()
-            if key in ("name", "description", "source", "repo", "author", "version", "url"):
-                mapped_key = "source" if key in ("repo", "url") else key
-                current[mapped_key] = value
-        elif not current:
-            current["name"] = line
+        m = re.match(r"^([a-zA-Z0-9_./-]+@[a-zA-Z0-9_.-]+)\s*(.*?)$", line)
+        if not m:
+            continue
 
-    if current:
-        results.append(current)
+        source = m.group(1)
+        rest = m.group(2).strip()
+        installs = ""
+        installs_m = re.search(r"([\d.]+[KMB]?)\s+installs?", rest, re.IGNORECASE)
+        if installs_m:
+            installs = installs_m.group(1)
+
+        name = source.split("@")[-1] if "@" in source else source.split("/")[-1]
+        url = ""
+
+        if i < len(lines):
+            next_line = lines[i].strip()
+            if next_line.startswith("└"):
+                url = next_line.lstrip("└").strip()
+                i += 1
+
+        results.append({
+            "name": name,
+            "source": source,
+            "description": f"{installs} installs" if installs else "",
+            "author": source.split("/")[0] if "/" in source else "",
+            "version": "",
+        })
+
     return results
 
 
