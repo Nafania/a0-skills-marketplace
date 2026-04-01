@@ -1,5 +1,5 @@
 from helpers.tool import Tool, Response
-from usr.plugins._skills_marketplace.helpers.skills_cli import (
+from usr.plugins.skills_marketplace.helpers.skills_cli import (
     search_marketplace,
     install_skill,
     remove_skill,

@@ -7,7 +7,7 @@ Search, install, and manage skills from the [skills.sh](https://skills.sh) marke
 Copy or symlink this directory into your Agent Zero `usr/plugins/` folder:
 
 ```bash
-ln -s /path/to/_skills_marketplace /path/to/agent-zero/usr/plugins/_skills_marketplace
+ln -s /path/to/skills_marketplace /path/to/agent-zero/usr/plugins/skills_marketplace
 ```
 
 ### Requirements
@@ -27,7 +27,7 @@ ln -s /path/to/_skills_marketplace /path/to/agent-zero/usr/plugins/_skills_marke
 ## Directory Structure
 
 ```
-_skills_marketplace/
+skills_marketplace/
 ├── plugin.yaml                    # Plugin manifest
 ├── hooks.py                       # Install hook (checks for npx)
 ├── default_config.yaml            # Default settings

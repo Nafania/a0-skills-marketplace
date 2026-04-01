@@ -1,5 +1,5 @@
 from helpers.extension import Extension
-from usr.plugins._skills_marketplace.helpers.skills_cli import list_installed_skills
+from usr.plugins.skills_marketplace.helpers.skills_cli import list_installed_skills
 
 
 class SkillsCatalogPrompt(Extension):
@@ -22,7 +22,7 @@ class SkillsCatalogPrompt(Extension):
     def _get_config(self) -> dict:
         try:
             from helpers import plugins
-            return plugins.get_plugin_config("_skills_marketplace", agent=self.agent) or {}
+            return plugins.get_plugin_config("skills_marketplace", agent=self.agent) or {}
         except Exception:
             return {}
 

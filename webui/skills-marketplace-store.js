@@ -1,8 +1,8 @@
 import { createStore } from "/js/AlpineStore.js";
 import * as API from "/js/api.js";
 
-const SKILLS_CATALOG_API = "/plugins/_skills_marketplace/skills_catalog";
-const SKILL_INSTALL_API = "/plugins/_skills_marketplace/skill_install";
+const SKILLS_CATALOG_API = "/plugins/skills_marketplace/skills_catalog";
+const SKILL_INSTALL_API = "/plugins/skills_marketplace/skill_install";
 
 const skillsMarketplaceStore = {
   searchQuery: "",

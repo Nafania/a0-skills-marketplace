@@ -11,8 +11,8 @@
 
                 <label class="toggle-label">
                     <input type="checkbox"
-                        x-model="$store.settings.pluginConfig._skills_marketplace.marketplace_enabled"
-                        @change="$store.settings.savePluginConfig('_skills_marketplace')">
+                        x-model="$store.settings.pluginConfig.skills_marketplace.marketplace_enabled"
+                        @change="$store.settings.savePluginConfig('skills_marketplace')">
                     <span>Enable Marketplace</span>
                 </label>
                 <div class="setting-hint">
@@ -21,8 +21,8 @@
 
                 <label class="toggle-label">
                     <input type="checkbox"
-                        x-model="$store.settings.pluginConfig._skills_marketplace.auto_check_updates"
-                        @change="$store.settings.savePluginConfig('_skills_marketplace')">
+                        x-model="$store.settings.pluginConfig.skills_marketplace.auto_check_updates"
+                        @change="$store.settings.savePluginConfig('skills_marketplace')">
                     <span>Auto-check for Updates</span>
                 </label>
                 <div class="setting-hint">
