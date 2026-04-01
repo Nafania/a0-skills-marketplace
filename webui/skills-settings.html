@@ -2,125 +2,13 @@
 <head>
     <title>Skills Marketplace</title>
     <script type="module">
-        document.addEventListener('alpine:init', () => {
-            if (Alpine.store('skillsMarketplace')) return;
-            Alpine.store('skillsMarketplace', {
-                searchQuery: '',
-                searchResults: [],
-                installedSkills: [],
-                loading: false,
-                installing: null,
-                removing: null,
-                error: '',
-                statusMessage: '',
-
-                async init() {
-                    await this.loadInstalled();
-                },
-
-                onClose() {},
-
-                async search() {
-                    const q = this.searchQuery.trim();
-                    if (!q) return;
-                    this.loading = true;
-                    this.error = '';
-                    this.statusMessage = '';
-                    this.searchResults = [];
-                    try {
-                        const resp = await fetch('/api/plugins/_skills_marketplace/skills_catalog', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'search', query: q }),
-                        });
-                        const data = await resp.json();
-                        if (data.ok) {
-                            this.searchResults = data.data.results || [];
-                            if (this.searchResults.length === 0) {
-                                this.statusMessage = `No skills found matching "${q}".`;
-                            }
-                        } else {
-                            this.error = data.error || 'Search failed';
-                        }
-                    } catch (e) {
-                        this.error = 'Network error: ' + e.message;
-                    }
-                    this.loading = false;
-                },
-
-                async installSkill(source) {
-                    this.installing = source;
-                    this.error = '';
-                    this.statusMessage = '';
-                    try {
-                        const resp = await fetch('/api/plugins/_skills_marketplace/skill_install', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'install', source }),
-                        });
-                        const data = await resp.json();
-                        if (data.ok) {
-                            this.statusMessage = `Installed "${source}" successfully.`;
-                            await this.loadInstalled();
-                        } else {
-                            this.error = data.error || 'Install failed';
-                        }
-                    } catch (e) {
-                        this.error = 'Network error: ' + e.message;
-                    }
-                    this.installing = null;
-                },
-
-                async removeSkill(name) {
-                    this.removing = name;
-                    this.error = '';
-                    this.statusMessage = '';
-                    try {
-                        const resp = await fetch('/api/plugins/_skills_marketplace/skill_install', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'remove', skill_name: name }),
-                        });
-                        const data = await resp.json();
-                        if (data.ok) {
-                            this.statusMessage = `Removed "${name}".`;
-                            await this.loadInstalled();
-                        } else {
-                            this.error = data.error || 'Remove failed';
-                        }
-                    } catch (e) {
-                        this.error = 'Network error: ' + e.message;
-                    }
-                    this.removing = null;
-                },
-
-                async loadInstalled() {
-                    try {
-                        const resp = await fetch('/api/plugins/_skills_marketplace/skills_catalog', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'list_installed' }),
-                        });
-                        const data = await resp.json();
-                        if (data.ok) {
-                            this.installedSkills = data.data.skills || [];
-                        }
-                    } catch (e) {
-                        // silently fail on load
-                    }
-                },
-
-                isInstalled(name) {
-                    return this.installedSkills.some(s => s.name === name);
-                },
-            });
-        });
+        import { store } from "/plugins/_skills_marketplace/webui/skills-marketplace-store.js";
     </script>
 </head>
 <body>
     <div x-data>
         <template x-if="$store.skillsMarketplace">
-            <div x-init="$store.skillsMarketplace.init()" x-destroy="$store.skillsMarketplace.onClose()">
+            <div x-create="$store.skillsMarketplace.onOpen()" x-destroy="$store.skillsMarketplace.onClose()">
 
                 <nav>
                     <ul>
