@@ -1,5 +1,5 @@
 from helpers.extension import Extension
-from plugins._skills_marketplace.helpers.skills_cli import list_installed_skills
+from usr.plugins._skills_marketplace.helpers.skills_cli import list_installed_skills
 
 
 class SkillsCatalogPrompt(Extension):

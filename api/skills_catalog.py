@@ -1,5 +1,5 @@
 from helpers.api import ApiHandler, Input, Output, Request, Response
-from plugins._skills_marketplace.helpers.skills_cli import (
+from usr.plugins._skills_marketplace.helpers.skills_cli import (
     search_marketplace,
     list_installed_skills,
 )
