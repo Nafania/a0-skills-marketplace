@@ -71,6 +71,13 @@ def remove_lock_entry(name: str) -> None:
 # npx skills CLI wrapper
 # ---------------------------------------------------------------------------
 
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _strip_ansi(text: str) -> str:
+    return _ANSI_RE.sub("", text)
+
+
 def _run_npx(*args: str, timeout: int = 60) -> Tuple[bool, str, str]:
     """
     Run `npx skills <args>` and return (success, stdout, stderr).
@@ -87,9 +94,11 @@ def _run_npx(*args: str, timeout: int = 60) -> Tuple[bool, str, str]:
             capture_output=True,
             text=True,
             timeout=timeout,
-            env={**os.environ, "NO_COLOR": "1"},
+            env={**os.environ, "NO_COLOR": "1", "FORCE_COLOR": "0", "TERM": "dumb"},
         )
-        return result.returncode == 0, result.stdout.strip(), result.stderr.strip()
+        stdout = _strip_ansi(result.stdout.strip())
+        stderr = _strip_ansi(result.stderr.strip())
+        return result.returncode == 0, stdout, stderr
     except subprocess.TimeoutExpired:
         return False, "", f"Command timed out after {timeout}s"
     except FileNotFoundError:
