@@ -195,19 +195,18 @@ def _parse_text_results(text: str) -> List[Dict[str, str]]:
 
 def install_skill(source: str) -> Tuple[bool, str, str]:
     """
-    Install a skill from source (e.g. owner/repo or URL).
-    Installs into the plugin's skills/ directory.
+    Install a skill from source (e.g. owner/repo@skill).
+    Uses `npx skills add <source> -y` for non-interactive install.
     Returns (success, installed_path, error_message).
     """
     if not source or not source.strip():
-        return False, "", "Source is required (e.g. owner/repo)"
+        return False, "", "Source is required (e.g. owner/repo@skill)"
 
     skills_dir = get_skills_dir()
     skills_dir.mkdir(parents=True, exist_ok=True)
 
     ok, stdout, stderr = _run_npx(
-        "install", source,
-        "--dir", str(skills_dir),
+        "add", source, "-y",
         timeout=120,
     )
 
@@ -385,14 +384,13 @@ def parse_skill_file(skill_path: Path) -> Optional[Skill]:
         return None
 
 
-def list_installed_skills() -> List[Skill]:
-    """List all skills installed in this plugin's skills/ directory."""
-    skills_dir = get_skills_dir()
-    if not skills_dir.exists():
-        return []
+_GLOBAL_SKILLS_DIR = Path("/.agents/skills")
 
-    skills: List[Skill] = []
-    for entry in sorted(skills_dir.iterdir()):
+
+def _scan_skills_dir(base: Path, skills: List["Skill"]) -> None:
+    if not base.exists():
+        return
+    for entry in sorted(base.iterdir()):
         if not entry.is_dir() or entry.name.startswith("."):
             continue
         skill_file = entry / "SKILL.md"
@@ -400,6 +398,26 @@ def list_installed_skills() -> List[Skill]:
             skill = parse_skill_file(skill_file)
             if skill:
                 skills.append(skill)
+
+
+def list_installed_skills() -> List[Skill]:
+    """List skills from both the plugin's skills/ dir and the global /.agents/skills/ dir."""
+    skills: List[Skill] = []
+    seen_names: set = set()
+
+    for base in [get_skills_dir(), _GLOBAL_SKILLS_DIR]:
+        if not base.exists():
+            continue
+        for entry in sorted(base.iterdir()):
+            if not entry.is_dir() or entry.name.startswith("."):
+                continue
+            skill_file = entry / "SKILL.md"
+            if skill_file.exists():
+                skill = parse_skill_file(skill_file)
+                if skill and skill.name not in seen_names:
+                    skills.append(skill)
+                    seen_names.add(skill.name)
+
     return skills
 
 
