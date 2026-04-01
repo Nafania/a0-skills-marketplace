@@ -20,6 +20,7 @@ def _ensure_skills_symlink():
     Create a symlink so the core discovery finds marketplace-installed skills.
     """
     import os
+    import shutil
     from pathlib import Path
     from helpers import files
     from helpers.print_style import PrintStyle
@@ -30,17 +31,29 @@ def _ensure_skills_symlink():
 
     persistent_dir.mkdir(parents=True, exist_ok=True)
 
+    # When HOME points to the persistent usr/ dir (e.g. /a0/usr),
+    # both paths are identical — no symlink needed.
+    try:
+        if home_skills.resolve() == persistent_dir.resolve():
+            return
+    except OSError:
+        pass
+
     if home_skills.is_symlink():
         if os.readlink(str(home_skills)) == str(persistent_dir):
             return
         home_skills.unlink()
-
-    if home_skills.is_dir():
+    elif home_skills.is_dir():
         for item in home_skills.iterdir():
             target = persistent_dir / item.name
             if not target.exists():
-                import shutil
                 shutil.move(str(item), str(target))
+            else:
+                # Duplicate — already in persistent dir, safe to remove
+                if item.is_dir():
+                    shutil.rmtree(str(item))
+                else:
+                    item.unlink()
         home_skills.rmdir()
 
     home_agents.mkdir(parents=True, exist_ok=True)
