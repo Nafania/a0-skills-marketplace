@@ -1,0 +1,403 @@
+<html>
+<head>
+    <title>Skills Marketplace</title>
+    <script type="module">
+        document.addEventListener('alpine:init', () => {
+            if (Alpine.store('skillsMarketplace')) return;
+            Alpine.store('skillsMarketplace', {
+                searchQuery: '',
+                searchResults: [],
+                installedSkills: [],
+                loading: false,
+                installing: null,
+                removing: null,
+                error: '',
+                statusMessage: '',
+
+                async init() {
+                    await this.loadInstalled();
+                },
+
+                onClose() {},
+
+                async search() {
+                    const q = this.searchQuery.trim();
+                    if (!q) return;
+                    this.loading = true;
+                    this.error = '';
+                    this.statusMessage = '';
+                    this.searchResults = [];
+                    try {
+                        const resp = await fetch('/api/skills_catalog', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'search', query: q }),
+                        });
+                        const data = await resp.json();
+                        if (data.ok) {
+                            this.searchResults = data.data.results || [];
+                            if (this.searchResults.length === 0) {
+                                this.statusMessage = `No skills found matching "${q}".`;
+                            }
+                        } else {
+                            this.error = data.error || 'Search failed';
+                        }
+                    } catch (e) {
+                        this.error = 'Network error: ' + e.message;
+                    }
+                    this.loading = false;
+                },
+
+                async installSkill(source) {
+                    this.installing = source;
+                    this.error = '';
+                    this.statusMessage = '';
+                    try {
+                        const resp = await fetch('/api/skill_install', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'install', source }),
+                        });
+                        const data = await resp.json();
+                        if (data.ok) {
+                            this.statusMessage = `Installed "${source}" successfully.`;
+                            await this.loadInstalled();
+                        } else {
+                            this.error = data.error || 'Install failed';
+                        }
+                    } catch (e) {
+                        this.error = 'Network error: ' + e.message;
+                    }
+                    this.installing = null;
+                },
+
+                async removeSkill(name) {
+                    this.removing = name;
+                    this.error = '';
+                    this.statusMessage = '';
+                    try {
+                        const resp = await fetch('/api/skill_install', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'remove', skill_name: name }),
+                        });
+                        const data = await resp.json();
+                        if (data.ok) {
+                            this.statusMessage = `Removed "${name}".`;
+                            await this.loadInstalled();
+                        } else {
+                            this.error = data.error || 'Remove failed';
+                        }
+                    } catch (e) {
+                        this.error = 'Network error: ' + e.message;
+                    }
+                    this.removing = null;
+                },
+
+                async loadInstalled() {
+                    try {
+                        const resp = await fetch('/api/skills_catalog', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'list_installed' }),
+                        });
+                        const data = await resp.json();
+                        if (data.ok) {
+                            this.installedSkills = data.data.skills || [];
+                        }
+                    } catch (e) {
+                        // silently fail on load
+                    }
+                },
+
+                isInstalled(name) {
+                    return this.installedSkills.some(s => s.name === name);
+                },
+            });
+        });
+    </script>
+</head>
+<body>
+    <div x-data>
+        <template x-if="$store.skillsMarketplace">
+            <div x-init="$store.skillsMarketplace.init()" x-destroy="$store.skillsMarketplace.onClose()">
+
+                <nav>
+                    <ul>
+                        <li>
+                            <a href="#section-marketplace-search">
+                                <span class="material-symbols-outlined">search</span>
+                                <span>Search Marketplace</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#section-installed-skills">
+                                <span class="material-symbols-outlined">inventory_2</span>
+                                <span>Installed Skills</span>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+
+                <!-- Status / Error -->
+                <div x-show="$store.skillsMarketplace.error" class="error-banner">
+                    <span x-text="$store.skillsMarketplace.error"></span>
+                </div>
+                <div x-show="$store.skillsMarketplace.statusMessage" class="status-banner">
+                    <span x-text="$store.skillsMarketplace.statusMessage"></span>
+                </div>
+
+                <!-- Search Section -->
+                <div id="section-marketplace-search" class="section">
+                    <div class="section-title">Search Marketplace</div>
+                    <div class="section-description">
+                        Search the skills.sh marketplace for skills to install.
+                    </div>
+
+                    <div class="search-bar">
+                        <input type="text" class="search-input" placeholder="Search skills..."
+                            x-model="$store.skillsMarketplace.searchQuery"
+                            @keydown.enter="$store.skillsMarketplace.search()">
+                        <button type="button" class="button confirm"
+                            @click="$store.skillsMarketplace.search()"
+                            :disabled="$store.skillsMarketplace.loading || !$store.skillsMarketplace.searchQuery.trim()">
+                            <span class="icon material-symbols-outlined">search</span> Search
+                        </button>
+                    </div>
+
+                    <div x-show="$store.skillsMarketplace.loading" class="loading">
+                        Searching...
+                    </div>
+
+                    <div class="results-list">
+                        <template x-for="result in $store.skillsMarketplace.searchResults" :key="result.source || result.name">
+                            <div class="skill-card">
+                                <div class="skill-header">
+                                    <div class="skill-heading">
+                                        <div class="skill-title" x-text="result.name"></div>
+                                        <div class="skill-meta">
+                                            <span x-show="result.author" class="skill-author" x-text="'by ' + result.author"></span>
+                                            <span x-show="result.version" class="skill-version" x-text="'v' + result.version"></span>
+                                        </div>
+                                    </div>
+                                    <div class="skill-actions">
+                                        <button type="button" class="button confirm"
+                                            x-show="!$store.skillsMarketplace.isInstalled(result.name)"
+                                            @click="$store.skillsMarketplace.installSkill(result.source || result.name)"
+                                            :disabled="$store.skillsMarketplace.installing === (result.source || result.name)">
+                                            <span class="icon material-symbols-outlined">download</span>
+                                            <span x-text="$store.skillsMarketplace.installing === (result.source || result.name) ? 'Installing...' : 'Install'"></span>
+                                        </button>
+                                        <span x-show="$store.skillsMarketplace.isInstalled(result.name)" class="installed-badge">
+                                            <span class="material-symbols-outlined">check_circle</span> Installed
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="skill-description" x-text="result.description || 'No description'"></div>
+                                <code class="skill-source" x-show="result.source" x-text="result.source"></code>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Installed Skills Section -->
+                <div id="section-installed-skills" class="section">
+                    <div class="section-title">Installed Marketplace Skills</div>
+                    <div class="section-description">
+                        Skills installed from the marketplace. These are auto-discovered by Agent Zero.
+                    </div>
+
+                    <div class="toolbar">
+                        <button type="button" class="button confirm"
+                            @click="$store.skillsMarketplace.loadInstalled()">
+                            <span class="icon material-symbols-outlined">refresh</span> Refresh
+                        </button>
+                    </div>
+
+                    <template x-if="$store.skillsMarketplace.installedSkills.length === 0">
+                        <div class="empty-state">No marketplace skills installed yet.</div>
+                    </template>
+
+                    <div class="skills-list">
+                        <template x-for="skill in $store.skillsMarketplace.installedSkills" :key="skill.path">
+                            <div class="skill-card">
+                                <div class="skill-header">
+                                    <div class="skill-heading">
+                                        <div class="skill-title" x-text="skill.name"></div>
+                                        <span class="skill-version" x-show="skill.version" x-text="'v' + skill.version"></span>
+                                    </div>
+                                    <div class="skill-actions">
+                                        <button type="button" class="button cancel"
+                                            @click="$confirmClick($event, () => $store.skillsMarketplace.removeSkill(skill.name))"
+                                            :disabled="$store.skillsMarketplace.removing === skill.name">
+                                            <span class="icon material-symbols-outlined">delete</span>
+                                            <span x-text="$store.skillsMarketplace.removing === skill.name ? 'Removing...' : 'Remove'"></span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="skill-description" x-text="skill.description || 'No description'"></div>
+                                <code class="skill-path" x-text="skill.path"></code>
+                                <div class="skill-tags" x-show="skill.tags && skill.tags.length > 0">
+                                    <template x-for="tag in (skill.tags || [])" :key="tag">
+                                        <span class="tag" x-text="tag"></span>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+            </div>
+        </template>
+    </div>
+
+    <style>
+        .search-bar {
+            display: flex;
+            gap: 0.5rem;
+            margin: 0.75rem 0;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            background: var(--color-bg-primary);
+            color: var(--color-text-primary);
+            font-size: 0.95rem;
+        }
+
+        .results-list, .skills-list {
+            margin-top: 0.75rem;
+        }
+
+        .skill-card {
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            padding: 0.75rem;
+            margin-top: 0.75rem;
+            background: var(--color-bg-primary);
+        }
+
+        .skill-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .skill-heading {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .skill-title {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .skill-meta {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 0.15rem;
+            font-size: 0.85rem;
+            color: var(--color-text-muted);
+        }
+
+        .skill-version {
+            font-size: 0.85rem;
+            color: var(--color-text-muted);
+        }
+
+        .skill-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
+
+        .skill-description {
+            margin-top: 0.35rem;
+            color: var(--color-text-secondary);
+            font-size: var(--font-size-small);
+        }
+
+        .skill-source, .skill-path {
+            display: block;
+            margin-top: 0.35rem;
+            font-size: 0.82rem;
+            color: var(--color-text-muted);
+            word-break: break-all;
+        }
+
+        .skill-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            margin-top: 0.5rem;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 0.1rem 0.5rem;
+            font-size: 0.78rem;
+            background: var(--color-input);
+            border: 1px solid var(--color-border);
+            border-radius: 3px;
+            color: var(--color-text-secondary);
+        }
+
+        .installed-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            color: var(--color-success, #2ecc71);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .installed-badge .material-symbols-outlined {
+            font-size: 1.1rem;
+        }
+
+        .toolbar {
+            margin: 0.5rem 0;
+        }
+
+        .loading {
+            text-align: center;
+            margin: 1rem 0;
+            color: var(--color-secondary);
+        }
+
+        .error-banner {
+            color: var(--color-error);
+            margin: 0.5rem 0;
+            padding: 0.5rem;
+            background: var(--color-error-bg);
+            border-radius: 4px;
+        }
+
+        .status-banner {
+            color: var(--color-success, #2ecc71);
+            margin: 0.5rem 0;
+            padding: 0.5rem;
+            background: var(--color-bg-primary);
+            border: 1px solid var(--color-success, #2ecc71);
+            border-radius: 4px;
+        }
+
+        .empty-state {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border: 1px dashed var(--color-border);
+            border-radius: 4px;
+            text-align: center;
+            color: var(--color-text-secondary);
+        }
+    </style>
+</body>
+</html>
