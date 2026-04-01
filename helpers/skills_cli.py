@@ -78,15 +78,27 @@ def _strip_ansi(text: str) -> str:
     return _ANSI_RE.sub("", text)
 
 
+def _get_usr_dir() -> str:
+    """Resolve the persistent usr/ directory via Agent Zero helpers if available."""
+    try:
+        from helpers import files
+        return files.get_abs_path("usr")
+    except Exception:
+        return "/a0/usr"
+
+
 def _run_npx(*args: str, timeout: int = 60) -> Tuple[bool, str, str]:
     """
     Run `npx skills <args>` and return (success, stdout, stderr).
+    HOME is set to the persistent usr/ directory so that global installs
+    (`-g`) land inside the mounted volume and survive container restarts.
     """
     npx = shutil.which("npx")
     if not npx:
         return False, "", "npx not found. Install Node.js from https://nodejs.org/"
 
     cmd = [npx, "skills", *args]
+    usr_dir = _get_usr_dir()
 
     try:
         result = subprocess.run(
@@ -94,7 +106,13 @@ def _run_npx(*args: str, timeout: int = 60) -> Tuple[bool, str, str]:
             capture_output=True,
             text=True,
             timeout=timeout,
-            env={**os.environ, "NO_COLOR": "1", "FORCE_COLOR": "0", "TERM": "dumb"},
+            env={
+                **os.environ,
+                "HOME": usr_dir,
+                "NO_COLOR": "1",
+                "FORCE_COLOR": "0",
+                "TERM": "dumb",
+            },
         )
         stdout = _strip_ansi(result.stdout.strip())
         stderr = _strip_ansi(result.stderr.strip())
@@ -206,7 +224,7 @@ def install_skill(source: str) -> Tuple[bool, str, str]:
     skills_dir.mkdir(parents=True, exist_ok=True)
 
     ok, stdout, stderr = _run_npx(
-        "add", source, "-y",
+        "add", source, "-y", "-g",
         timeout=120,
     )
 
@@ -384,7 +402,8 @@ def parse_skill_file(skill_path: Path) -> Optional[Skill]:
         return None
 
 
-_GLOBAL_SKILLS_DIR = Path("/.agents/skills")
+def _global_skills_dir() -> Path:
+    return Path(_get_usr_dir()) / ".agents" / "skills"
 
 
 def _scan_skills_dir(base: Path, skills: List["Skill"]) -> None:
@@ -405,7 +424,7 @@ def list_installed_skills() -> List[Skill]:
     skills: List[Skill] = []
     seen_names: set = set()
 
-    for base in [get_skills_dir(), _GLOBAL_SKILLS_DIR]:
+    for base in [get_skills_dir(), _global_skills_dir()]:
         if not base.exists():
             continue
         for entry in sorted(base.iterdir()):
