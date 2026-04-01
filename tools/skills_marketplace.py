@@ -2,6 +2,8 @@ from helpers.tool import Tool, Response
 from usr.plugins.skills_marketplace.helpers.skills_cli import (
     search_marketplace,
     install_skill,
+    update_skill,
+    check_updates,
     remove_skill,
     list_installed_skills,
     find_skill,
@@ -15,13 +17,17 @@ class SkillsMarketplace(Tool):
             return await self._search_remote(**kwargs)
         elif self.method == "install":
             return await self._install(**kwargs)
+        elif self.method == "update":
+            return await self._update(**kwargs)
+        elif self.method == "check_updates":
+            return await self._check_updates(**kwargs)
         elif self.method == "remove":
             return await self._remove(**kwargs)
         elif self.method == "list_installed":
             return await self._list_installed(**kwargs)
         return Response(
             message=f"Unknown method '{self.name}:{self.method}'. "
-                    f"Available: search_remote, install, remove, list_installed",
+                    f"Available: search_remote, install, update, check_updates, remove, list_installed",
             break_loop=False,
         )
 
@@ -84,6 +90,52 @@ class SkillsMarketplace(Tool):
                     f"The skill is now available for use.",
             break_loop=False,
         )
+
+    async def _update(self, source: str = "", **kwargs) -> Response:
+        if not source:
+            return Response(
+                message="Error: 'source' parameter is required (e.g. 'owner/repo@skill').",
+                break_loop=False,
+            )
+
+        await self.set_progress(f"Updating skill from '{source}'...")
+
+        ok, installed_path, error = update_skill(source)
+        if not ok:
+            return Response(
+                message=f"Update failed: {error}",
+                break_loop=False,
+            )
+
+        return Response(
+            message=f"Successfully updated skill from '{source}'.\n"
+                    f"Path: {installed_path}",
+            break_loop=False,
+        )
+
+    async def _check_updates(self, **kwargs) -> Response:
+        await self.set_progress("Checking for skill updates...")
+
+        ok, updates, error = check_updates()
+        if not ok:
+            return Response(
+                message=f"Failed to check for updates: {error}",
+                break_loop=False,
+            )
+
+        if not updates:
+            return Response(
+                message="All installed skills are up to date.",
+                break_loop=False,
+            )
+
+        lines = [f"{len(updates)} update(s) available:", ""]
+        for u in updates:
+            lines.append(f"  - **{u.get('name', '?')}** (source: {u.get('source', '?')})")
+        lines.append("")
+        lines.append("Use `skills_marketplace:update` with the source to update a skill.")
+
+        return Response(message="\n".join(lines), break_loop=False)
 
     async def _remove(self, skill_name: str = "", **kwargs) -> Response:
         if not skill_name:

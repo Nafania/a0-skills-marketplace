@@ -241,6 +241,81 @@ def install_skill(source: str) -> Tuple[bool, str, str]:
     return True, installed_path, ""
 
 
+def check_updates() -> Tuple[bool, List[Dict[str, str]], str]:
+    """
+    Check for available skill updates via `npx skills check`.
+    Returns (success, updates_list, error_message).
+    Each update: {"name": ..., "source": ...}
+    """
+    ok, stdout, stderr = _run_npx("check", timeout=60)
+
+    if not ok and not stdout:
+        return False, [], stderr or "Failed to check for updates"
+
+    updates = _parse_check_output(stdout)
+    return True, updates, ""
+
+
+def _parse_check_output(text: str) -> List[Dict[str, str]]:
+    """Parse `npx skills check` text output into a list of updatable skills."""
+    lock = read_lock()
+    lock_entries = lock.get("skills", {})
+    source_by_name: Dict[str, str] = {}
+    for name, entry in lock_entries.items():
+        source_by_name[name] = entry.get("source", "")
+
+    updates: List[Dict[str, str]] = []
+    for line in text.splitlines():
+        line = _strip_ansi(line).strip()
+        if not line:
+            continue
+
+        for skill_name in source_by_name:
+            if skill_name in line and ("update" in line.lower() or "new" in line.lower()
+                                       or "available" in line.lower() or "->" in line):
+                updates.append({
+                    "name": skill_name,
+                    "source": source_by_name[skill_name],
+                })
+                break
+        else:
+            m = re.match(r"^([a-zA-Z0-9_./-]+@[a-zA-Z0-9_.-]+)", line)
+            if m:
+                source = m.group(1)
+                name = source.split("@")[-1] if "@" in source else source.split("/")[-1]
+                if name not in {u["name"] for u in updates}:
+                    updates.append({"name": name, "source": source})
+
+    return updates
+
+
+def update_skill(source: str) -> Tuple[bool, str, str]:
+    """
+    Update a skill by re-installing from source.
+    Returns (success, installed_path, error_message).
+    """
+    if not source or not source.strip():
+        return False, "", "Source is required"
+
+    ok, stdout, stderr = _run_npx(
+        "add", source, "-y", "-g",
+        timeout=120,
+    )
+
+    if not ok:
+        return False, "", stderr or f"Failed to update '{source}'"
+
+    installed_name = _extract_installed_name(stdout, source)
+    skills_dir = get_skills_dir()
+    installed_path = str(skills_dir / installed_name) if installed_name else str(skills_dir)
+
+    if installed_name:
+        version = _detect_installed_version(skills_dir / installed_name)
+        add_lock_entry(installed_name, source, version)
+
+    return True, installed_path, ""
+
+
 def _extract_installed_name(stdout: str, source: str) -> str:
     """Extract the skill name from source (owner/repo@skill-name -> skill-name)."""
     if "@" in source:

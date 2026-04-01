@@ -100,6 +100,20 @@
                             @click="$store.skillsMarketplace.loadInstalled()">
                             <span class="icon material-symbols-outlined">refresh</span> Refresh
                         </button>
+                        <button type="button" class="button confirm"
+                            @click="$store.skillsMarketplace.checkUpdates()"
+                            :disabled="$store.skillsMarketplace.checkingUpdates">
+                            <span class="icon material-symbols-outlined">system_update_alt</span>
+                            <span x-text="$store.skillsMarketplace.checkingUpdates ? 'Checking...' : 'Check for Updates'"></span>
+                        </button>
+                        <template x-if="$store.skillsMarketplace.updatesAvailable.length > 0">
+                            <button type="button" class="button confirm update-all-btn"
+                                @click="$store.skillsMarketplace.updateAll()"
+                                :disabled="$store.skillsMarketplace.updating">
+                                <span class="icon material-symbols-outlined">download</span>
+                                Update All (<span x-text="$store.skillsMarketplace.updatesAvailable.length"></span>)
+                            </button>
+                        </template>
                     </div>
 
                     <template x-if="$store.skillsMarketplace.installedSkills.length === 0">
@@ -108,13 +122,26 @@
 
                     <div class="skills-list">
                         <template x-for="skill in $store.skillsMarketplace.installedSkills" :key="skill.path">
-                            <div class="skill-card">
+                            <div class="skill-card" :class="$store.skillsMarketplace.hasUpdate(skill.name) ? 'has-update' : ''">
                                 <div class="skill-header">
                                     <div class="skill-heading">
-                                        <div class="skill-title" x-text="skill.name"></div>
+                                        <div class="skill-title-row">
+                                            <span class="skill-title" x-text="skill.name"></span>
+                                            <span x-show="$store.skillsMarketplace.hasUpdate(skill.name)" class="update-badge">
+                                                <span class="material-symbols-outlined">arrow_upward</span> Update available
+                                            </span>
+                                        </div>
                                         <span class="skill-version" x-show="skill.version" x-text="'v' + skill.version"></span>
                                     </div>
                                     <div class="skill-actions">
+                                        <template x-if="$store.skillsMarketplace.hasUpdate(skill.name)">
+                                            <button type="button" class="button confirm"
+                                                @click="$store.skillsMarketplace.updateSkill($store.skillsMarketplace.getUpdateSource(skill.name))"
+                                                :disabled="$store.skillsMarketplace.updating === $store.skillsMarketplace.getUpdateSource(skill.name)">
+                                                <span class="icon material-symbols-outlined">download</span>
+                                                <span x-text="$store.skillsMarketplace.updating === $store.skillsMarketplace.getUpdateSource(skill.name) ? 'Updating...' : 'Update'"></span>
+                                            </button>
+                                        </template>
                                         <button type="button" class="button cancel"
                                             @click="$confirmClick($event, () => $store.skillsMarketplace.removeSkill(skill.name))"
                                             :disabled="$store.skillsMarketplace.removing === skill.name">
@@ -238,6 +265,38 @@
             color: var(--color-text-secondary);
         }
 
+        .skill-title-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .update-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.15rem;
+            padding: 0.1rem 0.45rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--color-warning, #e67e22);
+            background: color-mix(in srgb, var(--color-warning, #e67e22) 12%, transparent);
+            border: 1px solid color-mix(in srgb, var(--color-warning, #e67e22) 30%, transparent);
+            border-radius: 3px;
+        }
+
+        .update-badge .material-symbols-outlined {
+            font-size: 0.85rem;
+        }
+
+        .skill-card.has-update {
+            border-color: color-mix(in srgb, var(--color-warning, #e67e22) 40%, transparent);
+        }
+
+        .update-all-btn {
+            margin-left: auto;
+        }
+
         .installed-badge {
             display: flex;
             align-items: center;
@@ -252,6 +311,10 @@
         }
 
         .toolbar {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
             margin: 0.5rem 0;
         }
 

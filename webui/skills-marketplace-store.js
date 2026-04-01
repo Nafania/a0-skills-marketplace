@@ -8,17 +8,38 @@ const skillsMarketplaceStore = {
   searchQuery: "",
   searchResults: [],
   installedSkills: [],
+  updatesAvailable: [],
   loading: false,
   installing: null,
   removing: null,
+  updating: null,
+  checkingUpdates: false,
   error: "",
   statusMessage: "",
+  autoCheckUpdates: false,
 
-  onOpen() {
-    this.loadInstalled();
+  async onOpen() {
+    await this.loadInstalled();
+    await this._loadConfig();
+    if (this.autoCheckUpdates) {
+      this.checkUpdates();
+    }
   },
 
   onClose() {},
+
+  async _loadConfig() {
+    try {
+      const data = await API.callJsonApi(SKILLS_CATALOG_API, {
+        action: "get_config",
+      });
+      if (data.ok && data.data) {
+        this.autoCheckUpdates = !!data.data.auto_check_updates;
+      }
+    } catch (e) {
+      // config load failure is non-critical
+    }
+  },
 
   async search() {
     const q = this.searchQuery.trim();
@@ -79,6 +100,7 @@ const skillsMarketplaceStore = {
       if (data.ok) {
         this.statusMessage = `Removed "${name}".`;
         await this.loadInstalled();
+        this.updatesAvailable = this.updatesAvailable.filter((u) => u.name !== name);
       } else {
         this.error = data.error || "Remove failed";
       }
@@ -99,6 +121,68 @@ const skillsMarketplaceStore = {
     } catch (e) {
       // silently fail on load
     }
+  },
+
+  async checkUpdates() {
+    this.checkingUpdates = true;
+    this.error = "";
+    try {
+      const data = await API.callJsonApi(SKILLS_CATALOG_API, {
+        action: "check_updates",
+      });
+      if (data.ok) {
+        this.updatesAvailable = data.data?.updates || [];
+        if (this.updatesAvailable.length === 0) {
+          this.statusMessage = "All skills are up to date.";
+        } else {
+          this.statusMessage = `${this.updatesAvailable.length} update(s) available.`;
+        }
+      } else {
+        this.error = data.error || "Failed to check for updates";
+      }
+    } catch (e) {
+      this.error = "Network error: " + e.message;
+    }
+    this.checkingUpdates = false;
+  },
+
+  async updateSkill(source) {
+    this.updating = source;
+    this.error = "";
+    this.statusMessage = "";
+    try {
+      const data = await API.callJsonApi(SKILL_INSTALL_API, {
+        action: "update",
+        source,
+      });
+      if (data.ok) {
+        this.statusMessage = `Updated "${source}" successfully.`;
+        this.updatesAvailable = this.updatesAvailable.filter((u) => u.source !== source);
+        await this.loadInstalled();
+      } else {
+        this.error = data.error || "Update failed";
+      }
+    } catch (e) {
+      this.error = "Network error: " + e.message;
+    }
+    this.updating = null;
+  },
+
+  async updateAll() {
+    const sources = this.updatesAvailable.map((u) => u.source).filter(Boolean);
+    for (const source of sources) {
+      await this.updateSkill(source);
+      if (this.error) break;
+    }
+  },
+
+  hasUpdate(name) {
+    return this.updatesAvailable.some((u) => u.name === name);
+  },
+
+  getUpdateSource(name) {
+    const upd = this.updatesAvailable.find((u) => u.name === name);
+    return upd ? upd.source : "";
   },
 
   isInstalled(source) {

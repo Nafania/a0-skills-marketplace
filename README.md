@@ -79,6 +79,8 @@ The agent can use the `skills_marketplace` tool:
 ```
 skills_marketplace:search_remote  query="python debugging"
 skills_marketplace:install        source="owner/repo"
+skills_marketplace:update         source="owner/repo@skill"
+skills_marketplace:check_updates
 skills_marketplace:remove         skill_name="my-skill"
 skills_marketplace:list_installed
 ```
@@ -91,6 +93,12 @@ curl -X POST /api/skills_catalog -d '{"action": "search", "query": "testing"}'
 
 # Install skill
 curl -X POST /api/skill_install -d '{"action": "install", "source": "owner/repo"}'
+
+# Check for updates
+curl -X POST /api/skills_catalog -d '{"action": "check_updates"}'
+
+# Update skill
+curl -X POST /api/skill_install -d '{"action": "update", "source": "owner/repo@skill"}'
 
 # List installed
 curl -X POST /api/skills_catalog -d '{"action": "list_installed"}'

@@ -1,6 +1,7 @@
 from helpers.api import ApiHandler, Input, Output, Request, Response
 from usr.plugins.skills_marketplace.helpers.skills_cli import (
     install_skill,
+    update_skill,
     remove_skill,
 )
 
@@ -12,10 +13,12 @@ class SkillInstall(ApiHandler):
         try:
             if action == "install":
                 data = self._install(input)
+            elif action == "update":
+                data = self._update(input)
             elif action == "remove":
                 data = self._remove(input)
             else:
-                raise Exception("Invalid action. Use 'install' or 'remove'.")
+                raise Exception("Invalid action. Use 'install', 'update', or 'remove'.")
 
             return {
                 "ok": True,
@@ -35,6 +38,20 @@ class SkillInstall(ApiHandler):
         ok, installed_path, error = install_skill(source)
         if not ok:
             raise Exception(error or f"Failed to install '{source}'")
+
+        return {
+            "source": source,
+            "installed_path": installed_path,
+        }
+
+    def _update(self, input: Input):
+        source = str(input.get("source", "")).strip()
+        if not source:
+            raise Exception("'source' parameter is required")
+
+        ok, installed_path, error = update_skill(source)
+        if not ok:
+            raise Exception(error or f"Failed to update '{source}'")
 
         return {
             "source": source,

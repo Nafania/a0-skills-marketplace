@@ -2,6 +2,7 @@ from helpers.api import ApiHandler, Input, Output, Request, Response
 from usr.plugins.skills_marketplace.helpers.skills_cli import (
     search_marketplace,
     list_installed_skills,
+    check_updates,
     read_lock,
 )
 
@@ -15,8 +16,12 @@ class SkillsCatalog(ApiHandler):
                 data = await self._search(input)
             elif action == "list_installed":
                 data = self._list_installed()
+            elif action == "check_updates":
+                data = self._check_updates()
+            elif action == "get_config":
+                data = self._get_config()
             else:
-                raise Exception("Invalid action. Use 'search' or 'list_installed'.")
+                raise Exception("Invalid action. Use 'search', 'list_installed', 'check_updates', or 'get_config'.")
 
             return {
                 "ok": True,
@@ -68,3 +73,20 @@ class SkillsCatalog(ApiHandler):
             ],
             "count": len(skills),
         }
+
+    def _check_updates(self):
+        ok, updates, error = check_updates()
+        if not ok:
+            raise Exception(error or "Failed to check for updates")
+        return {
+            "updates": updates,
+            "count": len(updates),
+        }
+
+    def _get_config(self):
+        try:
+            from helpers import plugins
+            config = plugins.get_plugin_config("skills_marketplace") or {}
+        except Exception:
+            config = {}
+        return config
