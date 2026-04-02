@@ -246,6 +246,8 @@ def install_skill(source: str) -> Tuple[bool, str, str]:
     """
     Install a skill from source (e.g. owner/repo@skill).
     Uses `npx skills add <source> -y` for non-interactive install.
+    After installation, symlinks the skill into the plugin's skills/
+    directory so Agent Zero's skill discovery can find it.
     Returns (success, installed_path, error_message).
     """
     if not source or not source.strip():
@@ -263,13 +265,36 @@ def install_skill(source: str) -> Tuple[bool, str, str]:
         return False, "", stderr or f"Failed to install '{source}'"
 
     installed_name = _extract_installed_name(stdout, source)
-    installed_path = str(skills_dir / installed_name) if installed_name else str(skills_dir)
 
     if installed_name:
+        _link_skill_to_plugin(installed_name)
         version = _detect_installed_version(skills_dir / installed_name)
         add_lock_entry(installed_name, source, version)
 
+    installed_path = str(skills_dir / installed_name) if installed_name else str(skills_dir)
     return True, installed_path, ""
+
+
+def _link_skill_to_plugin(skill_name: str) -> None:
+    """
+    npx skills installs to HOME/.agents/skills/<name>.
+    Agent Zero only scans usr/plugins/*/skills/, so we copy the skill
+    into our plugin's skills/ dir. We copy rather than symlink because
+    Python's Path.rglob() doesn't follow directory symlinks.
+    """
+    import shutil
+
+    usr_dir = Path(_get_usr_dir())
+    npx_skill = usr_dir / ".agents" / "skills" / skill_name
+    plugin_skill = get_skills_dir() / skill_name
+
+    if plugin_skill.exists():
+        return
+
+    if npx_skill.is_dir():
+        shutil.copytree(str(npx_skill), str(plugin_skill))
+    elif npx_skill.exists():
+        shutil.copy2(str(npx_skill), str(plugin_skill))
 
 
 def check_updates() -> Tuple[bool, List[Dict[str, str]], str]:
