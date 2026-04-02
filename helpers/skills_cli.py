@@ -125,40 +125,71 @@ def _run_npx(*args: str, timeout: int = 60) -> Tuple[bool, str, str]:
         return False, "", str(e)
 
 
+_SKILLS_API_BASE = "https://skills.sh"
+
+
+def _format_installs(count: int) -> str:
+    if count >= 1_000_000:
+        return f"{count / 1_000_000:.1f}M"
+    if count >= 1_000:
+        return f"{count / 1_000:.1f}K"
+    return str(count)
+
+
 def search_marketplace(query: str) -> Tuple[bool, List[Dict[str, str]], str]:
     """
-    Search the skills.sh marketplace.
+    Search the skills.sh marketplace via its HTTP API.
     Returns (success, results_list, error_message).
-    Each result: {"name": ..., "description": ..., "source": ...}
+    Each result: {"name": ..., "description": ..., "source": ..., "author": ..., "installs": ...}
     """
     if not query or not query.strip():
         return False, [], "Search query is required"
 
-    ok, stdout, stderr = _run_npx("search", query, "--json")
+    try:
+        import urllib.request
+        import urllib.parse
 
-    if ok and stdout:
-        try:
-            data = json.loads(stdout)
-            results = []
-            items = data if isinstance(data, list) else data.get("results", data.get("skills", []))
-            for item in items:
-                if isinstance(item, dict):
-                    results.append({
-                        "name": item.get("name", ""),
-                        "description": item.get("description", ""),
-                        "source": item.get("source", item.get("repo", item.get("url", ""))),
-                        "author": item.get("author", ""),
-                        "version": item.get("version", ""),
-                    })
-            return True, results, ""
-        except json.JSONDecodeError:
-            pass
+        normalized = query.strip().replace("/", " ")
+        url = (
+            f"{_SKILLS_API_BASE}/api/search"
+            f"?q={urllib.parse.quote(normalized)}&limit=10"
+        )
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+
+        skills = data.get("skills", [])
+        results = []
+        for item in skills:
+            repo = item.get("source", "")
+            name = item.get("name", "")
+            source = f"{repo}@{name}" if repo and name else repo or name
+            installs = item.get("installs", 0)
+            results.append({
+                "name": name,
+                "description": f"{_format_installs(installs)} installs" if installs else "",
+                "source": source,
+                "author": repo.split("/")[0] if "/" in repo else repo,
+                "version": "",
+                "installs": installs,
+            })
+        results.sort(key=lambda r: r.get("installs", 0), reverse=True)
+        return True, results, ""
+    except Exception as e:
+        return _search_marketplace_cli_fallback(query, str(e))
+
+
+def _search_marketplace_cli_fallback(
+    query: str, api_error: str
+) -> Tuple[bool, List[Dict[str, str]], str]:
+    """Fall back to the npx CLI when the HTTP API is unreachable."""
+    ok, stdout, stderr = _run_npx("search", query)
 
     if ok and stdout:
         results = _parse_text_results(stdout)
         return True, results, ""
 
-    return False, [], stderr or "Search returned no results"
+    return False, [], api_error or stderr or "Search returned no results"
 
 
 def _parse_text_results(text: str) -> List[Dict[str, str]]:
