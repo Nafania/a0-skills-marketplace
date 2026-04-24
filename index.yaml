@@ -1,0 +1,9 @@
+title: Skills Marketplace
+description: Search, install, and manage skills from the skills.sh marketplace via the npx skills CLI.
+github: https://github.com/Nafania/a0-skills-marketplace
+tags:
+  - tools
+  - automation
+  - cli
+  - integration
+  - framework
