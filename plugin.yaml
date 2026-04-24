@@ -1,7 +1,7 @@
 name: skills_marketplace
 title: Skills Marketplace
 description: Search, install, and manage skills from the skills.sh marketplace via npx skills CLI.
-version: 1.4.0
+version: 1.4.1
 settings_sections:
   - agent
 per_project_config: false
